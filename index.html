@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c1b19">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rice">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Rice Calc</title>
+<style>
+  :root {
+    --bg: #f6f3ec; --card: #ffffff; --ink: #1c1b19; --muted: #6f6a60;
+    --accent: #b5651d; --line: #e4ded1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1c1b19; --card: #272522; --ink: #f2eee6; --muted: #a39d90;
+            --accent: #e0a060; --line: #3a3733; }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100dvh; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; align-items: center;
+  }
+  main { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 18px; }
+  h1 { font-size: 1.1rem; font-weight: 600; margin: 4px 0 0; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--card);
+         border: 1px solid var(--line); border-radius: 14px; padding: 4px; gap: 4px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); font: inherit;
+                font-size: 1.05rem; font-weight: 600; padding: 14px 0; border-radius: 10px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+  .input-wrap { position: relative; }
+  input[type=number] {
+    width: 100%; font: inherit; font-size: 2.4rem; font-weight: 600; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 64px 14px 16px; outline: none;
+  }
+  input[type=number]:focus { border-color: var(--accent); }
+  .unit { position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+          color: var(--muted); font-size: 1.1rem; pointer-events: none; }
+
+  .quick { display: flex; gap: 8px; flex-wrap: wrap; }
+  .quick button { flex: 1; min-width: 60px; border: 1px solid var(--line); background: var(--card);
+                  color: var(--ink); font: inherit; padding: 10px 0; border-radius: 10px; cursor: pointer; }
+  .quick button:active { border-color: var(--accent); }
+
+  .result { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+            padding: 18px 16px; text-align: center; }
+  .result .big { font-size: 3.4rem; font-weight: 700; line-height: 1.05; color: var(--accent); }
+  .result .big span { font-size: 1.4rem; font-weight: 600; margin-left: 4px; }
+  .result .sub { color: var(--muted); font-size: .9rem; margin-top: 6px; }
+  .warn { color: #c0392b; font-size: .85rem; margin-top: 10px; min-height: 1.1em; }
+  @media (prefers-color-scheme: dark) { .warn { color: #ff8a7a; } }
+
+  .ratio { display: flex; align-items: center; justify-content: space-between;
+           color: var(--muted); font-size: .9rem; padding: 0 4px; }
+  .ratio .stepper { display: flex; align-items: center; gap: 10px; }
+  .ratio .stepper button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line);
+                           background: var(--card); color: var(--ink); font-size: 1.2rem; cursor: pointer; }
+  .ratio strong { color: var(--ink); min-width: 70px; text-align: center; font-variant-numeric: tabular-nums; }
+  .reset { background: none; border: 0; color: var(--muted); font: inherit; font-size: .8rem;
+           text-decoration: underline; cursor: pointer; padding: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Rice : Water</h1>
+
+  <div class="seg" role="group" aria-label="Rice type">
+    <button id="t-basmati" aria-pressed="true">Basmati</button>
+    <button id="t-brown" aria-pressed="false">Brown</button>
+  </div>
+
+  <div>
+    <label for="rice">Rice (dry weight)</label>
+    <div class="input-wrap">
+      <input id="rice" type="number" inputmode="decimal" min="0" step="1" placeholder="0" autofocus>
+      <span class="unit">g</span>
+    </div>
+  </div>
+
+  <div class="quick" id="quick"></div>
+
+  <div class="result">
+    <div class="big"><span id="water">0</span><span>g water</span></div>
+    <div class="sub" id="sub">&nbsp;</div>
+    <div class="warn" id="warn"></div>
+  </div>
+
+  <div class="ratio">
+    <span>Ratio (rice : water)</span>
+    <div class="stepper">
+      <button id="down" aria-label="Less water">−</button>
+      <strong id="ratio-label">1 : 1.25</strong>
+      <button id="up" aria-label="More water">+</button>
+    </div>
+  </div>
+  <div style="text-align:center"><button class="reset" id="reset">Reset ratios to defaults</button></div>
+</main>
+
+<script>
+  // ---- Edit these ----
+  const DEFAULTS = { basmati: 1.25, brown: 1.5 }; // water grams per 1 g rice
+  const STEP = 0.05;                              // ratio nudge per +/- tap
+  const MAX_RICE_G = 600;                         // ~4 cups, cooker's max
+  const MIN_RICE_G = 75;                          // ~0.5 cup, cooker's min
+  const QUICK_G = [150, 300, 450, 600];           // ~1, 2, 3, 4 cups
+  // --------------------
+
+  const $ = id => document.getElementById(id);
+  let state = { type: "basmati", ratios: { ...DEFAULTS } };
+
+  try {
+    const saved = JSON.parse(localStorage.getItem("rice-calc") || "null");
+    if (saved) state = { type: saved.type || "basmati", ratios: { ...DEFAULTS, ...saved.ratios } };
+  } catch (e) {}
+
+  const save = () => { try { localStorage.setItem("rice-calc", JSON.stringify(state)); } catch (e) {} };
+  const fmt = n => (Math.round(n * 100) / 100).toString();
+
+  function render() {
+    const ratio = state.ratios[state.type];
+    const rice = parseFloat($("rice").value);
+    $("t-basmati").setAttribute("aria-pressed", state.type === "basmati");
+    $("t-brown").setAttribute("aria-pressed", state.type === "brown");
+    $("ratio-label").textContent = "1 : " + fmt(ratio);
+
+    if (!rice || rice <= 0) {
+      $("water").textContent = "0"; $("sub").innerHTML = "&nbsp;"; $("warn").textContent = "";
+      return;
+    }
+    $("water").textContent = Math.round(rice * ratio);
+    $("sub").textContent = `${fmt(rice)} g ${state.type} × ${fmt(ratio)}`;
+    $("warn").textContent =
+      rice > MAX_RICE_G ? `Over cooker max (~${MAX_RICE_G} g / 4 cups)` :
+      rice < MIN_RICE_G ? `Under cooker min (~${MIN_RICE_G} g / ½ cup)` : "";
+  }
+
+  $("t-basmati").onclick = () => { state.type = "basmati"; save(); render(); };
+  $("t-brown").onclick = () => { state.type = "brown"; save(); render(); };
+  $("rice").addEventListener("input", render);
+  $("up").onclick = () => { state.ratios[state.type] = Math.round((state.ratios[state.type] + STEP) * 100) / 100; save(); render(); };
+  $("down").onclick = () => { state.ratios[state.type] = Math.max(0.5, Math.round((state.ratios[state.type] - STEP) * 100) / 100); save(); render(); };
+  $("reset").onclick = () => { state.ratios = { ...DEFAULTS }; save(); render(); };
+
+  QUICK_G.forEach(g => {
+    const b = document.createElement("button");
+    b.textContent = g + "g";
+    b.onclick = () => { $("rice").value = g; render(); };
+    $("quick").appendChild(b);
+  });
+
+  render();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
